@@ -28,16 +28,16 @@ func NewClient(iface string) (c *Client, err error) {
 	c = new(Client)
 	c.conn, err = Dial(iface)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	return
+	return c, nil
 }
 
 // NewClientFromConn returns a new client from an already established connection
 func NewClientFromConn(conn WPAConn) (c *Client) {
 	c.conn = conn
-	return
+	return c
 }
 
 // Close will close the client connection
@@ -69,7 +69,7 @@ func (cl *Client) Status() (State, error) {
 func (cl *Client) Scan() (nets APs, err error) {
 	err = cl.conn.SendCommandBool(CmdScan)
 	if err != nil {
-		return
+		return nets, err
 	}
 
 	results := cl.conn.Subscribe(EventScanResults)
@@ -91,7 +91,7 @@ func (cl *Client) Scan() (nets APs, err error) {
 
 	scanned, err := cl.conn.SendCommand(CmdScanResults)
 	if err != nil {
-		return
+		return nets, err
 	}
 
 	return parseAP([]byte(scanned))
