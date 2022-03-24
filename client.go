@@ -1,12 +1,13 @@
 package wireless
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // WPAConn is an interface to the connection
@@ -131,10 +132,12 @@ func (cl *Client) Connect(net Network) (Network, error) {
 	sub := cl.conn.Subscribe(EventNetworkNotFound, EventAuthReject, EventConnected, EventDisconnected, EventAssocReject)
 	defer sub.Unsubscribe()
 	if net.IsDisabled() {
+		fmt.Printf("Enabling network %d\n", net.ID)
 		if err := cl.EnableNetwork(net.ID); err != nil {
 			return net, err
 		}
 	} else {
+		fmt.Printf("Selecting network %d\n", net.ID)
 		if err := cl.SelectNetwork(net.ID); err != nil {
 			return net, err
 		}
@@ -158,32 +161,22 @@ func (cl *Client) Connect(net Network) (Network, error) {
 	return net, errors.New("failed to catch event " + ev.Name)
 }
 
-func (cl *Client) Disconnect(net Network) (result Network, err error) {
-	nets, err := cl.Networks()
-	if err != nil {
-		return result, err
-	}
-	result, ok := nets.FindBySSID(net.SSID)
-	if !ok {
-		err = fmt.Errorf("unable to find %s", net.SSID)
-		return result, err
-	}
+func (cl *Client) Disconnect() (err error) {
 	_, err = cl.conn.SendCommand(CmdDisconnect)
-	return result, err
+	return err
 }
 
 // AddOrUpdateNetwork will add or, if the network has IDStr set, update it
 func (cl *Client) AddOrUpdateNetwork(net Network) (Network, error) {
-	if net.IDStr != "" {
+	if len(net.IDStr) == 0 {
 		nets, err := cl.Networks()
 		if err != nil {
 			return net, err
 		}
 
-		for _, n := range nets {
-			if n.IDStr == net.IDStr {
-				return cl.UpdateNetwork(net)
-			}
+		_, ok := nets.FindByIDStr(net.IDStr)
+		if ok {
+			return cl.UpdateNetwork(net)
 		}
 	}
 
@@ -195,11 +188,11 @@ func (cl *Client) AddOrUpdateNetwork(net Network) (Network, error) {
 			return net, err
 		}
 
-		for _, n := range nets {
-			if n.SSID == net.SSID {
-				net.IDStr = n.IDStr
-				return cl.UpdateNetwork(net)
-			}
+		found, ok := nets.FindBySSID(net.SSID)
+		if ok {
+			net.ID = found.ID
+			net.IDStr = found.IDStr
+			return cl.UpdateNetwork(net)
 		}
 	}
 
@@ -215,7 +208,7 @@ func (cl *Client) UpdateNetwork(net Network) (Network, error) {
 
 	for _, cmd := range setCmds(net) {
 		if err := cl.conn.SendCommandBool(cmd); err != nil {
-			return net, err
+			return net, errors.Wrap(err, cmd)
 		}
 	}
 

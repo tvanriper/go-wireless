@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/tvanriper/go-wireless"
 )
@@ -38,25 +37,21 @@ func main() {
 	}
 	defer wc.Close()
 
-	state, err := wc.Status()
+	status, err := wc.Status()
 	if err != nil {
-		fmt.Printf("problems getting the current status: %s\n", err)
+		fmt.Printf("failed to get status: %s\n", err)
 		os.Exit(1)
+	}
+	if status.WpaState != wireless.EventDisconnected {
+		fmt.Printf("Disconnecting.\n")
+		err = wc.Disconnect()
+		if err != nil {
+			fmt.Printf("failed to disconnect: %s\n", err)
+			fmt.Println("continuing...")
+		}
 	}
 
 	net := wireless.NewNetwork(ssid, pks)
-
-	if len(state.IPAddress) > 0 {
-		// Must disconnect first.
-		fmt.Printf("Disconnecting from %s.\n", state.SSID)
-		_, err = wc.Disconnect(wireless.NewNetwork(state.SSID, ""))
-		if err != nil {
-			fmt.Printf("failed to disconnect network: %s\n", err)
-			os.Exit(1)
-		}
-		// Pause for a bit to let messages run.
-		time.Sleep(time.Second)
-	}
 
 	fmt.Printf("Attempting to connect to %s...\n", ssid)
 	_, err = wc.Connect(net)
@@ -72,7 +67,7 @@ func main() {
 		case wireless.ErrAssocRejected:
 			fmt.Println("Assoc rejected")
 		default:
-			fmt.Println("failed to save configuration")
+			fmt.Printf("failed to save configuration: %s", err)
 		}
 		fmt.Println("Use wifistate to monitor for changes.")
 		os.Exit(1)
