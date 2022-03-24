@@ -11,6 +11,13 @@ type Network struct {
 	wireless.Network
 }
 
+func exPSK(v string) (string, string) {
+	if len(v) > 0 && v[0] == '"' {
+		return exVal(v), ""
+	}
+	return "", v
+}
+
 func exVal(v string) string {
 	return strings.Trim(strings.TrimSpace(v), `"`)
 }
@@ -40,7 +47,7 @@ func NewNetworkFromLines(id int, lines []string) Network {
 			net.SSID = exVal(v)
 
 		case "psk":
-			net.PSK = exVal(v)
+			net.PSK, net.HashPSK = exPSK(v)
 
 		case "key_mgmt":
 			net.KeyMgmt = exVal(v)
