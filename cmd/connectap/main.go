@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/tvanriper/go-wireless"
@@ -44,23 +43,20 @@ func main() {
 		fmt.Printf("problems getting the current status: %s\n", err)
 		os.Exit(1)
 	}
-	if len(state.ID) > 0 {
+
+	net := wireless.NewNetwork(ssid, pks)
+
+	if len(state.IPAddress) > 0 {
 		// Must disconnect first.
 		fmt.Printf("Disconnecting from %s.\n", state.SSID)
-		id, err := strconv.Atoi(state.ID)
+		_, err = wc.Disconnect(wireless.NewNetwork(state.SSID, ""))
 		if err != nil {
-			fmt.Printf("unable to convert %s to a number: %s", state.ID, err)
+			fmt.Printf("failed to disconnect network: %s\n", err)
 			os.Exit(1)
 		}
-		err = wc.DisableNetwork(id)
-		if err != nil {
-			fmt.Printf("failed to disable network: %s\n", err)
-			os.Exit(1)
-		}
-		// Give it a second, to help avoid conflicting messages.
+		// Pause for a bit to let messages run.
 		time.Sleep(time.Second)
 	}
-	net := wireless.NewNetwork(ssid, pks)
 
 	fmt.Printf("Attempting to connect to %s...\n", ssid)
 	_, err = wc.Connect(net)
