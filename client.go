@@ -2,6 +2,7 @@ package wireless
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -73,7 +74,10 @@ func (cl *Client) Scan() (nets APs, err error) {
 	}
 
 	results := cl.conn.Subscribe(EventScanResults)
+	defer results.Unsubscribe()
 	failed := cl.conn.Subscribe(EventScanFailed)
+	defer failed.Unsubscribe()
+	timer := time.NewTimer(time.Second * 2).C
 
 	func() {
 		for {
@@ -83,7 +87,7 @@ func (cl *Client) Scan() (nets APs, err error) {
 				return
 			case <-results.Next():
 				return
-			case <-time.NewTimer(time.Second * 2).C:
+			case <-timer:
 				return
 			}
 		}
@@ -125,8 +129,15 @@ func (cl *Client) Connect(net Network) (Network, error) {
 	}
 
 	sub := cl.conn.Subscribe(EventNetworkNotFound, EventAuthReject, EventConnected, EventDisconnected, EventAssocReject)
-	if err := cl.EnableNetwork(net.ID); err != nil {
-		return net, err
+	defer sub.Unsubscribe()
+	if net.IsDisabled() {
+		if err := cl.EnableNetwork(net.ID); err != nil {
+			return net, err
+		}
+	} else {
+		if err := cl.SelectNetwork(net.ID); err != nil {
+			return net, err
+		}
 	}
 
 	ev := <-sub.Next()
@@ -147,6 +158,20 @@ func (cl *Client) Connect(net Network) (Network, error) {
 	return net, errors.New("failed to catch event " + ev.Name)
 }
 
+func (cl *Client) Disconnect(net Network) (result Network, err error) {
+	nets, err := cl.Networks()
+	if err != nil {
+		return result, err
+	}
+	result, ok := nets.FindBySSID(net.SSID)
+	if !ok {
+		err = fmt.Errorf("unable to find %s", net.SSID)
+		return result, err
+	}
+	_, err = cl.conn.SendCommand(CmdDisconnect)
+	return result, err
+}
+
 // AddOrUpdateNetwork will add or, if the network has IDStr set, update it
 func (cl *Client) AddOrUpdateNetwork(net Network) (Network, error) {
 	if net.IDStr != "" {
@@ -157,6 +182,22 @@ func (cl *Client) AddOrUpdateNetwork(net Network) (Network, error) {
 
 		for _, n := range nets {
 			if n.IDStr == net.IDStr {
+				return cl.UpdateNetwork(net)
+			}
+		}
+	}
+
+	// I don't think it's right for the same SSID to have
+	// multiple passwords.  Check for a matching SSID.
+	if len(net.SSID) != 0 {
+		nets, err := cl.Networks()
+		if err != nil {
+			return net, err
+		}
+
+		for _, n := range nets {
+			if n.SSID == net.SSID {
+				net.IDStr = n.IDStr
 				return cl.UpdateNetwork(net)
 			}
 		}
@@ -212,6 +253,10 @@ func (cl *Client) RemoveNetwork(id int) error {
 // EnableNetwork will EnableNetwork
 func (cl *Client) EnableNetwork(id int) error {
 	return cl.conn.SendCommandBool(CmdEnableNetwork + " " + strconv.Itoa(id))
+}
+
+func (cl *Client) SelectNetwork(id int) error {
+	return cl.conn.SendCommandBool(CmdSelectNetwork + " " + strconv.Itoa(id))
 }
 
 // DisableNetwork will DisableNetwork
