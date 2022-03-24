@@ -3,6 +3,7 @@ package wireless
 import (
 	"bytes"
 	"encoding/csv"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -65,26 +66,32 @@ func parseAP(b []byte) ([]AP, error) {
 	r.Comma = '\t'
 	r.FieldsPerRecord = 5
 
-	recs, err := r.ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
 	aps := []AP{}
-	for _, rec := range recs {
+
+	for rec, err := r.Read(); err != io.EOF; rec, err = r.Read() {
+		if err == csv.ErrFieldCount {
+			// Skip this record, as it's probably malformed.
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if rec == nil {
+			continue
+		}
 		bssid, err := net.ParseMAC(rec[0])
 		if err != nil {
-			return nil, errors.Wrap(err, "parse mac")
+			continue
 		}
 
 		fr, err := strconv.Atoi(rec[1])
 		if err != nil {
-			return nil, errors.Wrap(err, "parse frequency")
+			continue
 		}
 
 		ss, err := strconv.Atoi(rec[2])
 		if err != nil {
-			return nil, errors.Wrap(err, "parse signal strength")
+			continue
 		}
 
 		aps = append(aps, AP{
