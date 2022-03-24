@@ -53,7 +53,7 @@ func (c *Conn) Close() error {
 }
 
 func (c *Conn) listen() {
-	buf := make([]byte, 2048)
+	buf := make([]byte, 4096)
 	for {
 		select {
 		case <-c.quit:
