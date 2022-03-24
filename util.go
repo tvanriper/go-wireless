@@ -3,6 +3,7 @@ package wireless
 import (
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -107,7 +108,7 @@ func parseAP(b []byte) ([]AP, error) {
 }
 
 func quote(s string) string {
-	return `"` + s + `"`
+	return fmt.Sprintf("\"%s\"", s)
 }
 
 func itoa(i int) string {
