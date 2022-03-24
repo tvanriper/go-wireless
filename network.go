@@ -1,6 +1,12 @@
 package wireless
 
-import "strings"
+import (
+	"crypto/sha1"
+	"encoding/hex"
+	"strings"
+
+	"golang.org/x/crypto/pbkdf2"
+)
 
 // This file contains components from github.com/brlbil/wpaclient
 //
@@ -27,8 +33,11 @@ import "strings"
 // NewNamedNetwork will create a new network with the given parameters
 func NewNamedNetwork(name, ssid, psk string) Network {
 	n := Network{IDStr: name, SSID: ssid, PSK: psk}
-	if psk == "" {
+	if len(psk) == 0 {
 		n.KeyMgmt = "NONE"
+	} else {
+		// Set the hashed version of the PSK
+		n.HashedPSK()
 	}
 	return n
 }
@@ -61,6 +70,7 @@ type Network struct {
 	BSSID    string   `json:"bssid"`
 	ScanSSID bool     `json:"scan_ssid"`
 	PSK      string   `json:"psk"`
+	HashPSK  string   `json:"hashpsk"`
 	Flags    []string `json:"flags"`
 }
 
@@ -190,10 +200,12 @@ func (net Network) Attributes(sep, indent string) []string {
 	lines = append(lines, indent+"ssid"+sep+quote(net.SSID))
 	switch {
 	case net.Known && net.PSK != "":
-		lines = append(lines, indent+"psk"+sep+quote(net.PSK))
+		lines = append(lines, indent+"psk"+sep+net.HashedPSK())
+		// lines = append(lines, indent+"psk"+sep+quote(net.PSK))
 	case net.Known:
 	case net.PSK != "":
-		lines = append(lines, indent+"psk"+sep+quote(net.PSK))
+		lines = append(lines, indent+"psk"+sep+net.HashedPSK())
+		// lines = append(lines, indent+"psk"+sep+quote(net.PSK))
 	}
 
 	if net.IsDisabled() {
@@ -213,6 +225,14 @@ func (net Network) Attributes(sep, indent string) []string {
 	}
 
 	return lines
+}
+
+func (net Network) HashedPSK() string {
+	if len(net.HashPSK) == 0 && len(net.PSK) > 0 {
+		pskBinary := pbkdf2.Key([]byte(net.PSK), []byte(net.SSID), 4096, 32, sha1.New)
+		net.HashPSK = hex.EncodeToString(pskBinary)
+	}
+	return net.HashPSK
 }
 
 func setCmds(net Network) []string {
