@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -22,6 +23,7 @@ type WPAConn interface {
 // Client represents a wireless client
 type Client struct {
 	conn WPAConn
+	mu   sync.Mutex
 }
 
 // NewClient will create a new client by connecting to the
@@ -59,6 +61,8 @@ func (cl *Client) Subscribe(topics ...string) *Subscription {
 
 // Status will return the current state of the WPA
 func (cl *Client) Status() (State, error) {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
 	data, err := cl.conn.SendCommand(CmdStatus)
 	if err != nil {
 		return State{}, err
@@ -69,6 +73,8 @@ func (cl *Client) Status() (State, error) {
 
 // Scan will scan for networks and return the APs it finds
 func (cl *Client) Scan() (nets APs, err error) {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
 	err = cl.conn.SendCommandBool(CmdScan)
 	if err != nil {
 		return nets, err
@@ -104,6 +110,8 @@ func (cl *Client) Scan() (nets APs, err error) {
 
 // Networks lists the known networks
 func (cl *Client) Networks() (nets Networks, err error) {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
 	data, err := cl.conn.SendCommand(CmdListNetworks)
 	if err != nil {
 		return nil, err
