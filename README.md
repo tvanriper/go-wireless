@@ -6,10 +6,10 @@ A way to interact with the Wireless interfaces on a Linux machine using WPA Supp
 
 ## Requirements
 
-Requires a running wpa_supplicant with control interface at `/var/run/wpa_supplicant` (which is usually 
+Requires a running wpa_supplicant with control interface at `/var/run/wpa_supplicant` (which is usually
 a symlink to `/run/wpa_supplicant`).  This requires the config file to contain the line:
 
-```
+```text
 ctrl_interface=DIR=/run/wpa_supplicant GROUP=wheel
 ```
 
@@ -17,7 +17,7 @@ Or for the `wpa_supplicant` instance to be running with the `-O /run/wpa_supplic
 
 You will probably also need to be running as root unless you are in the specified group (`wheel` in the above example).
 
-# Usage
+## Usage
 
 Examples of the usage can be found in the `cmd` directory as standalone commands.
 
@@ -72,12 +72,12 @@ sub := wc.Subscribe(wireless.EventConnected, wireless.EventAuthReject, wireless.
 
 ev := <-sub.Next()
 switch ev.Name {
-	case wireless.EventConnected:
-		fmt.Println(ev.Arguments)
-	case wireless.EventAuthReject:
-		fmt.Println(ev.Arguments)
-	case wireless.EventDisconnected:
-		fmt.Println(ev.Arguments)
+ case wireless.EventConnected:
+  fmt.Println(ev.Arguments)
+ case wireless.EventAuthReject:
+  fmt.Println(ev.Arguments)
+ case wireless.EventDisconnected:
+  fmt.Println(ev.Arguments)
 }
 ```
 
@@ -88,7 +88,6 @@ st, err := wc.Status()
 fmt.Printf("%+v\n", st)
 ```
 
-
 ## API
 
 There is an API that can be used with [gin](https://github.com/gin-gonic/gin):
@@ -96,7 +95,7 @@ There is an API that can be used with [gin](https://github.com/gin-gonic/gin):
 ```golang
 r := gin.Default()
 api.SetupRoutes(r)
-r,Serve(":8080")
+r.Serve(":8080")
 ```
 
 ## Endpoints
