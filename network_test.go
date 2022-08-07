@@ -1,6 +1,7 @@
 package wireless
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -19,12 +20,13 @@ var openNet = Network{ID: 0, IDStr: "x", SSID: "gg"}
 func TestSetCmds(t *testing.T) {
 	Convey("given a private network", t, func() {
 		n := pskNet
+		hashed := n.HashedPSK()
 
 		Convey("when the set commands are rendered", func() {
 			cmds := setCmds(n)
 
 			Convey("then it should have the basic fields", func() {
-				So(cmds, ShouldContain, `SET_NETWORK 0 psk "xx"`)
+				So(cmds, ShouldContain, fmt.Sprintf(`SET_NETWORK 0 psk %s`, hashed))
 				So(cmds, ShouldContain, `SET_NETWORK 0 ssid "gg"`)
 			})
 		})
@@ -33,13 +35,14 @@ func TestSetCmds(t *testing.T) {
 	Convey("given a disabled custom private network", t, func() {
 		n := pskNet2
 		n.Disable(true)
+		hashed := n.HashedPSK()
 
 		Convey("when the set commands are rendered", func() {
 			cmds := setCmds(n)
 			Println(cmds)
 
 			Convey("then it should have the basic fields", func() {
-				So(cmds, ShouldContain, `SET_NETWORK 0 psk "xx"`)
+				So(cmds, ShouldContain, fmt.Sprintf(`SET_NETWORK 0 psk %s`, hashed))
 				So(cmds, ShouldContain, `SET_NETWORK 0 ssid "gg"`)
 				So(cmds, ShouldContain, `SET_NETWORK 0 key_mgmt WPA2-TKIP`)
 				So(cmds, ShouldContain, `SET_NETWORK 0 disabled 1`)
@@ -66,13 +69,14 @@ func TestSetCmds(t *testing.T) {
 
 		Convey("when the password is reset", func() {
 			n.PSK = "horsewaffle"
+			hashed := n.HashedPSK()
 			Convey("when the set commands are rendered", func() {
 				cmds := setCmds(n)
 				Println(cmds)
 
 				Convey("then it should not contain the PSK", func() {
 					So(len(cmds), ShouldEqual, 4)
-					So(cmds, ShouldContain, `SET_NETWORK 0 psk "horsewaffle"`)
+					So(cmds, ShouldContain, fmt.Sprintf(`SET_NETWORK 0 psk %s`, hashed))
 					So(cmds, ShouldContain, `SET_NETWORK 0 ssid "gg"`)
 					So(cmds, ShouldContain, `SET_NETWORK 0 key_mgmt WPA2-TKIP`)
 					So(cmds, ShouldContain, `SET_NETWORK 0 scan_ssid 1`)
